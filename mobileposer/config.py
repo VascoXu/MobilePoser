@@ -7,7 +7,7 @@ class train_hypers:
     """Hyperparameters for training."""
     batch_size = 256
     num_workers = 8
-    num_epochs = 60
+    num_epochs = 80
     accelerator = "gpu"
     device = 0
     lr = 1e-3
@@ -32,8 +32,10 @@ class paths:
     raw_amass = Path("/data/projects/Pose/raw/AMASS")           # TODO: replace with your path
     raw_dip = Path("/data/projects/Pose/raw/DIP_IMU")           # TODO: replace with your path
     raw_imuposer = Path("/data/projects/Pose/raw/IMUPoser")     # TODO: replace with your path
-    eval_dir = root_dir / "data/processed_datasets/eval"
-    processed_datasets = root_dir / "data/processed_datasets"
+    eval_dir = root_dir / "/data/datasets/pose/eval"
+    processed_datasets = root_dir / "/data/datasets/pose"
+    calibrated_totalcapture = root_dir / "/data/datasets/pose/TotalCapture/IMU"  # TODO: replace with your path
+    raw_totalcapture = root_dir / "/data/datasets/pose/TotalCapture/raw"  # TODO: replace with your path
 
 
 class model_config:
@@ -85,7 +87,7 @@ class amass:
 class datasets:
     """Dataset information."""
     # FPS of data
-    fps = 30
+    fps = 25
 
     # DIP dataset
     dip_test = "dip_test.pt"
@@ -116,7 +118,8 @@ class datasets:
     amass_datasets = ['ACCAD', 'BioMotionLab_NTroje', 'BMLhandball', 'BMLmovi', 'CMU', 
                       'DanceDB', 'DFaust_67', 'EKUT', 'Eyes_Japan_Dataset', 'HUMAN4D',
                       'HumanEva', 'KIT', 'MPI_HDM05', 'MPI_Limits', 'MPI_mosh', 'SFU',
-                      'SSM_synced', 'TCD_handMocap', 'TotalCapture', 'Transitions_mocap']
+                      'SSM_synced', 'TCD_handMocap', 'TotalCapture', 'Transitions_mocap',
+                      'MOYO']
 
     # Root-relative joint positions
     root_relative = False

@@ -23,11 +23,12 @@ body_model = ParametricModel(paths.smpl_file)
 def _syn_acc(v, smooth_n=4):
     """Synthesize accelerations from vertex positions."""
     mid = smooth_n // 2
-    acc = torch.stack([(v[i] + v[i + 2] - 2 * v[i + 1]) * 3600 for i in range(0, v.shape[0] - 2)])
+    scale = TARGET_FPS**2
+    acc = torch.stack([(v[i] + v[i + 2] - 2 * v[i + 1]) * scale for i in range(0, v.shape[0] - 2)])
     acc = torch.cat((torch.zeros_like(acc[:1]), acc, torch.zeros_like(acc[:1])))
     if mid != 0:
         acc[smooth_n:-smooth_n] = torch.stack(
-            [(v[i] + v[i + smooth_n * 2] - 2 * v[i + smooth_n]) * 3600 / smooth_n ** 2
+            [(v[i] + v[i + smooth_n * 2] - 2 * v[i + smooth_n]) * scale / smooth_n ** 2
              for i in range(0, v.shape[0] - smooth_n * 2)])
     return acc
 
@@ -111,7 +112,6 @@ def process_amass():
             b += l
 
         print("Saving...")
-        print(out_vacc.shape, out_pose.shape)
         data = {
             'joint': out_joint,
             'pose': out_pose,
@@ -122,22 +122,22 @@ def process_amass():
             'contact': out_contact
         }
         data_path = paths.processed_datasets / f"{ds_name}.pt"
-        #torch.save(data, data_path)
+        torch.save(data, data_path)
         print(f"Synthetic AMASS dataset is saved at: {data_path}")
 
 
 def process_totalcapture():
-    """Preprocess TotalCapture dataset for testing."""
+    """Preprocess TotalCapture dataset for evaluation."""
 
     inches_to_meters = 0.0254
     pos_file = 'gt_skel_gbl_pos.txt'
-    ori_file = 'gt_skel_gbl_ori.txt'
+    downsampling_step = 2 # 60FPS -> 30FPS
 
     subjects = ['S1', 'S2', 'S3', 'S4', 'S5']
 
-    # Load poses from processed AMASS dataset
-    amass_tc = torch.load(os.path.join(paths.processed_datasets, "AMASS", "TotalCapture", "pose.pt"))
-    tc_poses = {pose.shape[0]: pose for pose in amass_tc}
+    # load poses from processed AMASS dataset
+    amass_tc = torch.load(os.path.join(paths.processed_datasets, "TotalCapture.pt"))
+    tc_poses = {pose.shape[0]: pose for pose in amass_tc['pose']} # account for the downsampling
 
     processed, failed_to_process = [], []
     accs, oris, poses, trans = [], [], [], []
@@ -149,12 +149,17 @@ def process_totalcapture():
         ori = torch.from_numpy(data['ori']).float()
         acc = torch.from_numpy(data['acc']).float()
 
-        # Load pose data from AMASS
+        # downsample the acc and ori
+        ori = ori[::downsampling_step]
+        acc = acc[::downsampling_step]
+
+        # load pose data from AMASS
         try: 
             name_split = file.split("_")
             subject, activity = name_split[0], name_split[1].split(".")[0]
             pose_npz = np.load(os.path.join(paths.raw_amass, "TotalCapture", subject, f"{activity}_poses.npz"))
             pose = torch.from_numpy(pose_npz['poses']).float().view(-1, 52, 3)
+            pose = pose[::downsampling_step]
         except:
             failed_to_process.append(f"{subject}_{activity}")
             print(f"Failed to Process: {file}")
@@ -169,9 +174,6 @@ def process_totalcapture():
             acc = acc[:pose.shape[0]]
             ori = ori[:pose.shape[0]]
 
-        # convert axis-angle to rotation matrix
-        pose = math.axis_angle_to_rotation_matrix(pose).view(-1, 24, 3, 3)
-
         assert acc.shape[0] == ori.shape[0] and ori.shape[0] == pose.shape[0]
         accs.append(acc)    # N, 6, 3
         oris.append(ori)    # N, 6, 3, 3
@@ -180,11 +182,11 @@ def process_totalcapture():
         processed.append(file)
     
     for subject_name in subjects:
-        for motion_name in sorted(os.listdir(os.path.join(paths.raw_totalcapture_official, subject_name))):
+        for motion_name in sorted(os.listdir(os.path.join(paths.raw_totalcapture, subject_name))):
             if (subject_name == 'S5' and motion_name == 'acting3') or motion_name.startswith(".") or (f"{subject_name.lower()}_{motion_name}" in failed_to_process):
                 continue   # no SMPL poses
 
-            f = open(os.path.join(paths.raw_totalcapture_official, subject_name, motion_name, pos_file))
+            f = open(os.path.join(paths.raw_totalcapture, subject_name, motion_name, pos_file))
             line = f.readline().split('\t')
             index = torch.tensor([line.index(_) for _ in ['LeftFoot', 'RightFoot', 'Spine']])
             pos = []
@@ -194,6 +196,11 @@ def process_totalcapture():
             pos = torch.stack(pos[:-1])[:, index] * inches_to_meters
             pos[:, :, 0].neg_()
             pos[:, :, 2].neg_()
+
+            # downsample the pos
+            pos = pos[::downsampling_step]
+
+            # convert pos to torch tensor
             trans.append(pos[:, 2] - pos[:1, 2])   # N, 3
 
     # match trans with poses
@@ -220,7 +227,7 @@ def process_totalcapture():
     }
     data_path = paths.eval_dir / "totalcapture.pt"
     torch.save(data, data_path)
-    print("Preprocessed TotalCapture dataset is saved at:", paths.processed_totalcapture)
+    print(f"Processed TotalCapture dataset is saved at: {data_path} ({len(poses)} sequences)")
 
 
 def process_dipimu(split="test"):
