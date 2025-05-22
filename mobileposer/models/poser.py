@@ -52,7 +52,7 @@ class Poser(L.LightningModule):
     def _reduced_global_to_full(self, reduced_pose):
         pose = art.math.r6d_to_rotation_matrix(reduced_pose).view(-1, joint_set.n_reduced, 3, 3)
         pose = reduced_pose_to_full(pose.unsqueeze(0)).squeeze(0).view(-1, 24, 3, 3)
-        pred_pose = self.global_to_local_pose(pose)
+        pred_pose = self.global_to_local_pose(pose) if train_config.use_global else pose
         for ignore in joint_set.ignored: pred_pose[:, ignore] = torch.eye(3, device=self.C.device)
         pred_pose[:, 0] = pose[:, 0]
         return pred_pose
@@ -91,7 +91,7 @@ class Poser(L.LightningModule):
 
         # joint position loss
         if self.use_pos_loss:
-            full_pose_p = self._reduced_global_to_full(pose_p)
+            full_pose_p = self._reduced_global_to_full(pose_p)  
             joints_p = self.bodymodel.forward_kinematics(pose=full_pose_p.view(-1, 216))[1].view(B, S, -1)
             loss += self.loss(joints_p, target_joints)
 

@@ -38,7 +38,7 @@ class MobilePoserNet(L.LightningModule):
         self.global_to_local_pose = self.bodymodel.inverse_kinematics_R
 
         # model definitions
-        self.pose = poser if poser else Poser()                                # pose estimation model
+        self.pose = poser if poser else Poser()                                 # pose estimation model
         self.joints = joints if joints else Joints()                            # joint estimation model
         self.foot_contact = foot_contact if foot_contact else FootContact()     # foot-ground probability model
         self.velocity = velocity if velocity else Velocity()                    # joint velocity model
@@ -93,7 +93,7 @@ class MobilePoserNet(L.LightningModule):
     def _reduced_global_to_full(self, reduced_pose):
         pose = art.math.r6d_to_rotation_matrix(reduced_pose).view(-1, joint_set.n_reduced, 3, 3)
         pose = reduced_pose_to_full(pose.unsqueeze(0)).squeeze(0).view(-1, 24, 3, 3)
-        pred_pose = self.global_to_local_pose(pose)
+        pred_pose = self.global_to_local_pose(pose) if train_config.use_global else pose
         pred_pose[:, joint_set.ignored] = torch.eye(3, device=self.device)
         pred_pose[:, 0] = pose[:, 0]
         return pred_pose
@@ -107,7 +107,7 @@ class MobilePoserNet(L.LightningModule):
         pred_pose = self.pose(pose_input, input_lengths)
         
         # global pose to local
-        pred_pose = self._reduced_global_to_full(pred_pose)
+        pred_pose = self._reduced_global_to_full(pred_pose) 
 
         # forward the foot-ground contact probability model
         tran_input = torch.cat((pred_joints, batch), dim=-1)

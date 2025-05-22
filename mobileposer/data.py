@@ -62,7 +62,7 @@ class PoseDataset(Dataset):
         for acc, ori, pose, tran, joint, foot in zip(accs, oris, poses, trans, joints, foots):
             acc, ori = acc[:, :5]/amass.acc_scale, ori[:, :5]
             pose_global, joint = self.bodymodel.forward_kinematics(pose=pose.view(-1, 216)) # convert local rotation to global
-            pose = pose if self.evaluate else pose_global.view(-1, 24, 3, 3)                # use global only for training
+            pose = pose if (self.evaluate or not train_config.use_global) else pose_global.view(-1, 24, 3, 3)                # use global only for training
             joint = joint.view(-1, 24, 3)
             self._process_combo_data(acc, ori, pose, joint, tran, foot, data)
 
