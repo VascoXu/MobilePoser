@@ -25,7 +25,7 @@ class finetune_hypers:
     num_epochs = 10
     accelerator = "gpu"
     device = 0
-    lr = 5e-5
+    lr = 5e-4
 
 
 class paths:
