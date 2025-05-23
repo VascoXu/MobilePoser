@@ -90,14 +90,6 @@ class MobilePoserNet(L.LightningModule):
     def _prob_to_weight(self, p):
         return (p.clamp(self.prob_threshold[0], self.prob_threshold[1]) - self.prob_threshold[0]) / (self.prob_threshold[1] - self.prob_threshold[0])
     
-    def _reduced_global_to_full(self, reduced_pose):
-        pose = art.math.r6d_to_rotation_matrix(reduced_pose).view(-1, joint_set.n_reduced, 3, 3)
-        pose = reduced_pose_to_full(pose.unsqueeze(0)).squeeze(0).view(-1, 24, 3, 3)
-        pred_pose = self.global_to_local_pose(pose) if train_config.use_global else pose
-        pred_pose[:, joint_set.ignored] = torch.eye(3, device=self.device)
-        pred_pose[:, 0] = pose[:, 0]
-        return pred_pose
-
     def forward(self, batch, input_lengths=None):
         # forward the joint prediction model
         pred_joints = self.joints(batch, input_lengths)
@@ -106,9 +98,6 @@ class MobilePoserNet(L.LightningModule):
         pose_input = torch.cat((pred_joints, batch), dim=-1)
         pred_pose = self.pose(pose_input, input_lengths)
         
-        # global pose to local
-        pred_pose = self._reduced_global_to_full(pred_pose) 
-
         # forward the foot-ground contact probability model
         tran_input = torch.cat((pred_joints, batch), dim=-1)
         foot_contact = self.foot_contact(tran_input, input_lengths)
@@ -122,6 +111,7 @@ class MobilePoserNet(L.LightningModule):
     def forward_offline(self, imu, input_lengths=None):
         # forward the predcition model
         pose, pred_joints, vel, contact = self.forward(imu, input_lengths)
+        pose = art.math.r6d_to_rotation_matrix(pose).view(-1, 24, 3, 3)
         contact = contact.squeeze(0) 
 
         # compute joints from predicted pose
@@ -176,6 +166,7 @@ class MobilePoserNet(L.LightningModule):
 
         # forward the pose prediction model
         pose, pred_joints, vel, contact = self.forward(imu.unsqueeze(0), [self.num_total_frames])
+        pose = art.math.r6d_to_rotation_matrix(pose).view(-1, 24, 3, 3)
 
         # get pose
         pose = pose[self.num_past_frames].view(-1, 9)

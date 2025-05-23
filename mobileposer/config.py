@@ -86,7 +86,6 @@ class amass:
 
     pred_joints_set = [*range(24)]
     joint_sets = [18, 19, 1, 2, 15, 0]
-    ignored_joints = list(set(pred_joints_set) - set(joint_sets))
 
 
 class datasets:

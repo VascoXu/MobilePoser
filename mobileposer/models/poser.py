@@ -29,7 +29,7 @@ class Poser(L.LightningModule):
         self.global_to_local_pose = self.bodymodel.inverse_kinematics_R
 
         # model definitions
-        self.pose = RNN(self.C.n_output_joints*3 + self.C.n_imu, joint_set.n_reduced*6, 256) # pose estimation model
+        self.pose = RNN(self.C.n_output_joints*3 + self.C.n_imu, joint_set.n_full*6, 256) # pose estimation model
 
         # loss function
         self.loss = nn.MSELoss()
@@ -48,14 +48,6 @@ class Poser(L.LightningModule):
         model.hypers = finetune_hypers
         model.finetune = True
         return model
-
-    def _reduced_global_to_full(self, reduced_pose):
-        pose = art.math.r6d_to_rotation_matrix(reduced_pose).view(-1, joint_set.n_reduced, 3, 3)
-        pose = reduced_pose_to_full(pose.unsqueeze(0)).squeeze(0).view(-1, 24, 3, 3)
-        pred_pose = self.global_to_local_pose(pose) if train_config.use_global else pose
-        for ignore in joint_set.ignored: pred_pose[:, ignore] = torch.eye(3, device=self.C.device)
-        pred_pose[:, 0] = pose[:, 0]
-        return pred_pose
 
     def forward(self, batch, input_lengths=None):
         # forward the pose prediction model
@@ -85,15 +77,20 @@ class Poser(L.LightningModule):
         pose_p = self(pose_input, input_lengths)
 
         # compute pose loss
-        pose_t = target_pose.view(B, S, 24, 6)[:, :, joint_set.reduced].view(B, S, -1)
+        pose_t = target_pose.view(B, S, 24, 6).view(B, S, -1)
         loss = self.loss(pose_p, pose_t)
         loss += self.t_weight*self.compute_jerk_loss(pose_p)
 
         # joint position loss
         if self.use_pos_loss:
-            full_pose_p = self._reduced_global_to_full(pose_p)  
-            joints_p = self.bodymodel.forward_kinematics(pose=full_pose_p.view(-1, 216))[1].view(B, S, -1)
-            loss += self.loss(joints_p, target_joints)
+            pred_joint = self.bodymodel.forward_kinematics(pose=art.math.r6d_to_rotation_matrix(pose_p).view(-1, 216))[1]
+            target_joint = self.bodymodel.forward_kinematics(pose=art.math.r6d_to_rotation_matrix(pose_t).view(-1, 216))[1]
+
+            pred_joint = pred_joint.view(pose_p.shape[0], pose_p.shape[1], -1)
+            target_joint = target_joint.view(pose_p.shape[0], pose_p.shape[1], -1)
+
+            # compute loss with respect to the joint positions
+            loss += self.loss(pred_joint, target_joint)
 
         return loss
 
