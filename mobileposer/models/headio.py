@@ -25,6 +25,11 @@ class HeadIO(L.LightningModule):
         self.hypers = train_hypers
         self.bodymodel = ParametricModel(paths.smpl_file, device=self.C.device)
 
+        # base joints
+        self.j, _ = self.bodymodel.get_zero_pose_joint_and_vertex()
+        self.feet_pos = self.j[10:12].clone()
+        self.floor_y = self.j[10:12, 1].min().item()
+
         # model definitions
         self.vel = RNN(self.C.n_imu, 3, 256, bidirectional=False)  # per-frame velocity of the root joint. 
         self.rnn_state = None
@@ -46,6 +51,24 @@ class HeadIO(L.LightningModule):
         # forward velocity model
         vel, _, self.rnn_state = self.vel(batch, input_lengths, self.rnn_state)
         return vel
+    
+    def forward_offline(self, batch, joints=None, input_lengths=None):
+        # forward velocity model
+        velocity, _, _ = self.vel(batch, input_lengths)
+        velocity = velocity.squeeze(0)
+        velocity = velocity / (datasets.fps/amass.vel_scale)
+
+        # remove penetration
+        floor_y = self.j[10:12, 1].min().item()
+        current_root_y = 0
+        for i in range(velocity.shape[0]):
+            current_foot_y = current_root_y + joints[i, 10:12, 1].min().item()
+            if current_foot_y + velocity[i, 1].item() <= floor_y:
+                velocity[i, 1] = floor_y - current_foot_y
+            current_root_y += velocity[i, 1].item()
+        tran = torch.stack([velocity[:i+1].sum(dim=0) for i in range(velocity.shape[0])]) # velocity to root position
+        
+        return tran
 
     def shared_step(self, batch):
         # unpack data

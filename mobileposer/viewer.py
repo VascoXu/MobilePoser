@@ -19,6 +19,7 @@ class Viewer:
         # load models 
         self.device = model_config.device
         self.model = load_model(paths.weights_file).to(self.device).eval()
+        self.headio = HeadIO.load_from_checkpoint("checkpoints/headio.ckpt")
 
         # setup dataloader
         self.dataloader = DataLoader(dataset, combo=combo, device=self.device)
@@ -41,4 +42,7 @@ class Viewer:
         pose_t, tran_t = self.data['pose'], self.data['tran']
         pose_p, tran_p, _, _ = self._evaluate_model()
         viewer = SMPLViewer()
-        viewer.view(pose_p, tran_p, pose_t, tran_t, with_tran=with_tran)
+        
+        imu = self.data['imu']
+        head_tran = self.headio.forward_offline(imu.unsqueeze(0), joints=pose_t, input_lengths=[imu.shape[0]]).squeeze(0).detach()
+        viewer.view(pose_p, head_tran, pose_t, tran_t, with_tran=with_tran)
