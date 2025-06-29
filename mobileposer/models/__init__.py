@@ -4,3 +4,4 @@ from .footcontact import *
 from .velocity import *
 from .poser import *
 from .joints import *
+from .headio import *
