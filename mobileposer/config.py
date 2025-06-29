@@ -9,7 +9,7 @@ class train_hypers:
     num_workers = 8
     num_epochs = 80
     accelerator = "gpu"
-    device = 0
+    device = 1
     lr = 1e-3
 
 
@@ -19,8 +19,8 @@ class finetune_hypers:
     num_workers = 8
     num_epochs = 15
     accelerator = "gpu"
-    device = 0
-    lr = 5e-5
+    device = 1
+    lr = 5e-4
 
 
 class paths:
@@ -41,7 +41,7 @@ class paths:
 class model_config:
     """MobilePoser Model configurations."""
     # device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     
     # joint set
     n_joints = 5                        # (head, right-wrist, left-wrist, right-hip, left-hip)
@@ -59,19 +59,24 @@ class amass:
     """AMASS dataset information."""
     # device-location combinationsa
     combos = {
-        'lw_rp_h': [0, 3, 4],
-        'rw_rp_h': [1, 3, 4],
-        'lw_lp_h': [0, 2, 4],
-        'rw_lp_h': [1, 2, 4],
-        'lw_lp': [0, 2],
-        'lw_rp': [0, 3],
-        'rw_lp': [1, 2],
-        'rw_rp': [1, 3],
-        'lp_h': [2, 4],
-        'rp_h': [3, 4],
-        'lp': [2],
-        'rp': [3],
-     }
+        # 'global': [0, 1, 2, 3, 4],
+        # 'lw_rp_h': [0, 3, 4],
+        # 'rw_rp_h': [1, 3, 4],
+        # 'lw_lp_h': [0, 2, 4],
+        # 'rw_lp_h': [1, 2, 4],
+        # 'lw_h': [0, 4],
+        # 'lw': [0],
+        # 'lw_lp': [0, 2],
+        # 'lw_rp': [0, 3],
+        'h': [4],
+        # 'rw_lp': [1, 2],
+        # 'rw_rp': [1, 3],
+        # 'lp_h': [2, 4],
+        # 'rp_h': [3, 4],
+        # 'lp': [2],
+        # 'rp': [3],
+    }
+
     acc_scale = 30
     vel_scale = 2
 
@@ -125,7 +130,7 @@ class datasets:
     root_relative = False
 
     # Window length of IMU and Pose data 
-    window_length = 125
+    window_length = 300
 
 
 class joint_set:

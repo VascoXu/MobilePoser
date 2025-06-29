@@ -123,4 +123,4 @@ if __name__ == '__main__':
 
     # evaluate pose
     print(f"Starting evaluation: {args.dataset.capitalize()}")
-    evaluate_pose(model, dataset)
+    evaluate_pose(model, dataset, evaluate_tran=True)
