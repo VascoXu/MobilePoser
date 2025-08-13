@@ -12,7 +12,7 @@ from mobileposer.config import paths, datasets
 
 
 # specify target FPS
-TARGET_FPS = 30
+TARGET_FPS = 50
 
 # left wrist, right wrist, left thigh, right thigh, head, pelvis
 vi_mask = torch.tensor([1961, 5424, 876, 4362, 411, 3021])

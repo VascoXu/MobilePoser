@@ -10,7 +10,7 @@ class train_hypers:
     num_epochs = 80
     accelerator = "gpu"
     device = 1
-    lr = 1e-3
+    lr = 3e-4
 
 
 class finetune_hypers:
@@ -32,10 +32,10 @@ class paths:
     raw_amass = Path("/data/projects/Pose/raw/AMASS")           # TODO: replace with your path
     raw_dip = Path("/data/projects/Pose/raw/DIP_IMU")           # TODO: replace with your path
     raw_imuposer = Path("/data/projects/Pose/raw/IMUPoser")     # TODO: replace with your path
-    eval_dir = root_dir / "/data/datasets/pose/eval"
-    processed_datasets = root_dir / "/data/datasets/pose"
+    eval_dir = root_dir / "/data/projects/Pose/processed_50fps/eval"
+    processed_datasets = root_dir / "/data/projects/Pose/processed_50fps"
     calibrated_totalcapture = root_dir / "/data/datasets/pose/TotalCapture/IMU"  # TODO: replace with your path
-    raw_totalcapture = root_dir / "/data/datasets/pose/TotalCapture/raw"  # TODO: replace with your path
+    raw_totalcapture = root_dir / "/data/datasets/pose/TotalCapture/raw"         # TODO: replace with your path
 
 
 class model_config:
